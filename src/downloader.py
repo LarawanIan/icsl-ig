@@ -49,28 +49,28 @@ def download_required(source: str) -> tuple[list[Path], str]:
     downloaded_files = []
 
     for repo_info in repos_info[1:]:
-        user = repo_info['user']
-        repo = repo_info['repo']
-        tag = repo_info['tag']
+        release = utils.detect_release(repo_info)
+        entry_name = (
+            repo_info.get("repo")
+            or repo_info.get("project")
+            or repo_info.get("name")
+            or ""
+        ).lower()
 
-        release = utils.detect_github_release(user, repo, tag)
-        
-        # Special handling for Morphe files
-        if repo == "morphe-patches" or repo == "morphe-cli":
-            for asset in release["assets"]:
-                if asset["name"].endswith(".asc"):
-                    continue
-                # Download .mpp patches or morphe-cli.jar
-                if asset["name"].endswith(".mpp") or ("morphe-cli" in asset["name"] and asset["name"].endswith(".jar")):
-                    filepath = download_resource(asset["browser_download_url"])
-                    downloaded_files.append(filepath)
-        else:
-            # Original logic for ReVanced files
-            for asset in release["assets"]:
-                if asset["name"].endswith(".asc"):
-                    continue
-                filepath = download_resource(asset["browser_download_url"])
-                downloaded_files.append(filepath)
+        for asset in release["assets"]:
+            asset_name = asset["name"]
+            asset_url = asset["browser_download_url"]
+            if asset_name.endswith(".asc"):
+                continue
+
+            # Keep the existing Morphe-specific asset filtering.
+            if "morphe-patches" in entry_name or "morphe-cli" in entry_name:
+                if asset_name.endswith(".mpp") or (
+                    "morphe-cli" in asset_name and asset_name.endswith(".jar")
+                ):
+                    downloaded_files.append(download_resource(asset_url))
+            else:
+                downloaded_files.append(download_resource(asset_url))
 
     return downloaded_files, name
 
