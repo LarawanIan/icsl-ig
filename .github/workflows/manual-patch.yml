@@ -44,7 +44,7 @@ jobs:
     
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4.5.0
+        uses: actions/checkout@v4
       
       - name: Set Specific Version (if provided)
         if: ${{ inputs.version != '' }}
@@ -69,7 +69,7 @@ jobs:
           done
       
       - name: Install Python
-        uses: actions/setup-python@v5.1.0
+        uses: actions/setup-python@v5
         with:
           python-version: 3.11
       
@@ -112,7 +112,7 @@ jobs:
           echo "$apk_files"
       
       - name: Upload as Artifact
-        uses: actions/upload-artifact@v4.6.0
+        uses: actions/upload-artifact@v4
         with:
           name: manual-apk-${{ inputs.app_name }}-${{ inputs.architecture }}
           path: "*.apk"
