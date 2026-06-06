@@ -279,19 +279,29 @@ def run_build(app_name: str, source: str, arch: str = "universal") -> str:
         # Patch succeeded -> cleanup input and sign.
         input_apk.unlink(missing_ok=True)
 
-        signed_apk = Path(f"{app_name}-{arch}-{name}-v{version}.apk")
+        # Extracts the Morphe patch version dynamically from the downloaded file
+        patchver = utils.extract_version(str(patches))
+        
+        # Formats file naming pattern strictly to your custom style: youtube17.34.35v1.31.0.apk
+        output_custom_name = f"youtube-morphe_{version}-v{patchver}.apk"
+        signed_apk = Path(output_custom_name)
 
         apksigner = utils.find_apksigner()
         if not apksigner:
             raise RuntimeError("apksigner not found")
 
+        # Use your custom secrets injected from the workflow env space
+        ks_path = getenv("KS_PATH", "/tmp/custom.keystore")
+        ks_pass = getenv("KS_PASSWORD")
+        ks_alias = getenv("KEY_ALIAS")
+
         try:
             utils.run_process([
                 str(apksigner), "sign", "--verbose",
-                "--ks", "keystore/public.jks",
-                "--ks-pass", "pass:public",
-                "--key-pass", "pass:public",
-                "--ks-key-alias", "public",
+                "--ks", ks_path,
+                "--ks-pass", f"pass:{ks_pass}",
+                "--key-pass", f"pass:{ks_pass}",
+                "--ks-key-alias", ks_alias,
                 "--in", str(output_apk), "--out", str(signed_apk)
             ], capture=True, stream=True)
         except Exception as e:
@@ -301,10 +311,10 @@ def run_build(app_name: str, source: str, arch: str = "universal") -> str:
             utils.run_process([
                 str(apksigner), "sign", "--verbose",
                 "--min-sdk-version", "21",
-                "--ks", "keystore/public.jks",
-                "--ks-pass", "pass:public",
-                "--key-pass", "pass:public",
-                "--ks-key-alias", "public",
+                "--ks", ks_path,
+                "--ks-pass", f"pass:{ks_pass}",
+                "--key-pass", f"pass:{ks_pass}",
+                "--ks-key-alias", ks_alias,
                 "--in", str(output_apk), "--out", str(signed_apk)
             ], capture=True, stream=True)
 
@@ -312,7 +322,6 @@ def run_build(app_name: str, source: str, arch: str = "universal") -> str:
         print(f"✅ APK built: {signed_apk.name}")
         return str(signed_apk)
 
-    # If we got here, every candidate version failed.
     return None
 
 def main():
@@ -344,6 +353,9 @@ def main():
             if apk_path:
                 built_apks.append(apk_path)
                 print(f"✅ Built {arch} version: {Path(apk_path).name}")
+                
+                # Trigger the GitHub release creation framework natively
+                release.create_github_release(app_name, "patches", "cli", apk_path)
         
         # Summary
         print(f"\n🎯 Built {len(built_apks)} APK(s) for {app_name}:")
