@@ -5,16 +5,12 @@ from pathlib import Path
 from src import repository, gh
 
 def convert_title(text):
+    # Enforces the combined framework title: "MorpheIG"
     if not text or not isinstance(text, str):
         return text
-    if text.lower() == 'youtube':
-        return 'YT'
-    return re.sub(
-        r'\b([a-z0-9]+(?:-[a-z0-9]+)*)\b',
-        lambda m: m.group(1).replace('-', ' ').title(),
-        text,
-        flags=re.IGNORECASE
-    )
+    if text.lower() == 'instagram':
+        return 'MorpheIG'
+    return text.title()
 
 def extract_version(file_path):
     if not file_path:
@@ -22,16 +18,20 @@ def extract_version(file_path):
     path = Path(file_path)
     base_name = path.stem
     
-    # Custom rule for format: youtube-morphe_20.47.62-v1.29.0
-    # Extracts "20.47.62"
+    # Custom rule for your format: morphe-instagram_426_v3.3.0
+    # Extracts the version "426" before the "_v" division flag
     if '_' in base_name:
         parts = base_name.split('_')
         if len(parts) > 1:
-            ver_part = parts[1].split('-v')[0]
+            # Check if it has a second separation index like _v3.3.0
+            ver_part = parts[1].split('-v')[0] if '-v' in parts[1] else parts[1]
+            # Strip a leading 'v' if present in the middle segment
+            if ver_part.lower().startswith('v') and not ver_part[1:].isalpha():
+                ver_part = ver_part[1:]
             return ver_part
 
-    # Fallback default rule
-    match = re.search(r'(\d+\.\d+\.\d+(-[a-z]+\.\d+)?(-release\d*)?)', base_name)
+    # Fallback default rule to find digits
+    match = re.search(r'(\d+\.\d+\.\d+|\d{3,})', base_name)
     return match.group(1) if match else 'unknown'
 
 def create_github_release(name, patches_name, cli_name, apk_file_path):
@@ -76,11 +76,9 @@ def create_github_release(name, patches_name, cli_name, apk_file_path):
     
     app_version = extract_version(str(apk_file_path))
     
-    # --- CUSTOM TAG GENERATION LAYOUT ---
-    # Normalizes "youtube" to "yt", attaches framework suffix, and generates: yt-mph-20.51.39-1.30.0
-    normalized_name = 'yt' if name.lower() == 'youtube' else name.lower()
-    tag_prefix = 'mph-' if is_morphe else 'rvx-'
-    tag_name = f"{normalized_name}-{tag_prefix}{app_version}-{patchver}"
+    # --- FIXED INSTAGRAM CUSTOM TAG GENERATION LAYOUT ---
+    # Produces exactly: mph-ig-426-3.3.0
+    tag_name = f"mph-ig-{app_version}-{patchver}"
 
     apk_path = Path(apk_file_path)
     if not apk_path.exists():
@@ -100,19 +98,16 @@ def create_github_release(name, patches_name, cli_name, apk_file_path):
             if asset.name == apk_path.name:
                 asset.delete_asset()
 
-    # Step 3: Delete old releases with the same base name and matching version suffix
+    # Step 3: Delete old releases with matching targets
     releases = list(repo.get_releases())
-
     suffix_match = re.search(r'(-[a-z]+\.\d+)$', patchver)
     current_suffix = suffix_match.group(1) if suffix_match else ''
 
-    # Re-normalize check bounds for target cleanups
     for r in releases:
         release_tag = r.tag_name
-        if (release_tag.startswith(f"{normalized_name}-{tag_prefix}") or release_tag.startswith(f"{name}-v")) and release_tag != tag_name:
-            # Basic old-release version comparison parsing logic fallback
+        if release_tag.startswith("mph-ig-") and release_tag != tag_name:
             try:
-                old_version = release_tag.split(f"{tag_prefix}")[-1]
+                old_version = release_tag.split("mph-ig-")[-1]
                 if '-' in old_version:
                     old_patchver = old_version.split('-')[-1]
                 else:
@@ -141,8 +136,8 @@ def create_github_release(name, patches_name, cli_name, apk_file_path):
 **{microg_name}** is **necessary** to function correctly. 
 - Please **download** it from [HERE]({microg_link}).
 """
-        # Formats release title layout precisely to: YT Morphe 20.51.39-1.30.0
-        release_name = f"{convert_title(name)} Morphe {app_version}-{patchver}"
+        # Formats Release Title precisely to: MorpheIG v426-3.3.0
+        release_name = f"{convert_title(name)} v{app_version}-{patchver}"
         
         existing_release = repo.create_git_release(
             tag=tag_name,

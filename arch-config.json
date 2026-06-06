@@ -1,7 +1,7 @@
 [
   {
-    "app_name": "youtube",
-    "source": "morphe",
+    "app_name": "instagram",
+    "source": "piko",
     "arches": ["arm64-v8a"]
   }
 ]
